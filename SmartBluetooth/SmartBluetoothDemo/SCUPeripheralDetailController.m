@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-#import "PeripheralDetailController.h"
+#import "SCUPeripheralDetailController.h"
+#import "SCUReadWriteDataController.h"
 
 typedef  void (^SendDataBlock)(NSData *data);
 
 NSString *const kCharacteristicCell = @"kCharacteristicCell";
 NSString *const kServiceCell = @"kServiceCell";
 
-@interface PeripheralDetailController ()<UIAlertViewDelegate>{
+@interface SCUPeripheralDetailController () {
     SendDataBlock sendDataBlock;
 }
 
 @end
 
-@implementation PeripheralDetailController
+@implementation SCUPeripheralDetailController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
@@ -39,6 +40,7 @@ NSString *const kServiceCell = @"kServiceCell";
     
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(discoverCharacteristicNotification:) name:@"DiscoverCharacteristicNotification" object:nil];
 }
+
 
 -(instancetype)initWithStyle:(UITableViewStyle)style{
     if (self = [super initWithStyle:style]) {
@@ -55,7 +57,6 @@ NSString *const kServiceCell = @"kServiceCell";
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
 {
-    DLog(@"_peripheral.services.count = %d",_peripheral.services.count);
     return  [_peripheral.services count];
 }
 
@@ -93,22 +94,20 @@ NSString *const kServiceCell = @"kServiceCell";
     CBService *service = [_peripheral.services objectAtIndex:indexPath.section];
     CBCharacteristic *charactristic = [service.characteristics objectAtIndex:indexPath.row];
   
+    SCUReadWriteDataController *readWriteDataVC = [[SCUReadWriteDataController alloc] init];
+    readWriteDataVC.charactristic = charactristic;
+    readWriteDataVC.peripheral = self.peripheral;
+    
     UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"Send data to device" message:[NSString stringWithFormat:@"Charactristic UUID:%@",[charactristic.UUID UUIDString]] delegate:self cancelButtonTitle:@"cancel" otherButtonTitles:nil, nil];
     
     if (charactristic.properties & CBCharacteristicPropertyWrite) {
-        alertView.alertViewStyle = UIAlertViewStylePlainTextInput;
-        [alertView addButtonWithTitle:@"send"];
+        
+        [self.navigationController pushViewController:readWriteDataVC animated:YES];
     }
     else{
         alertView.title = @"Writing is not permitted";
+        [alertView show];
     }
-    
-    [alertView show];
-    
-    __weak typeof(self) weakSelf = self;
-    sendDataBlock = ^(NSData *data){
-         [weakSelf.peripheral writeValue:data forCharacteristic:charactristic type:CBCharacteristicWriteWithResponse];
-    };
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
@@ -122,17 +121,4 @@ NSString *const kServiceCell = @"kServiceCell";
 }
 
 
-#pragma mark - UIAlertViewDelegate
-- (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex{
-    
-    if (buttonIndex == 1) {
-        UITextField *textField = [alertView textFieldAtIndex:0];
-        DLog(@"alert text = %@",textField.text);
-        
-        NSData *data = [textField.text dataUsingEncoding:NSUTF8StringEncoding];
-        if (sendDataBlock) {
-            sendDataBlock(data);
-        }
-    }
-}
 @end
